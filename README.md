@@ -9,3 +9,4 @@ Stellaris Launchpad (TI) starter project
 ToDo:
 
 	- makefile
+	- try UART tx according to https://github.com/dwelch67/stellaris_launchpad/blob/master/uart01/uart01.c
