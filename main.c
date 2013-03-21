@@ -13,6 +13,7 @@
  * more comming soon ...
  */
 
+#include <stdio.h>
 #include <inttypes.h>
 
 #include "lm4f120h5qr.h"
@@ -100,9 +101,10 @@ void uart_init ( void )
 
 #define LCD_RESET_ALL_PINS() {GPIO_PORTA_DATA_R&=~0x1C;GPIO_PORTC_DATA_R&=~0xF0;}
 
-#define LCD_PULSE_DELAY (80*16)
-#define LCD_INIT_DELAY (100000*16)
-#define LCD_STARTUP_DELAY (50000*16)
+#define LCD_PULSE_DELAY (10*8)
+#define LCD_INTERCMD_DELAY (100*8)
+#define LCD_INIT_DELAY (100000*8)
+#define LCD_STARTUP_DELAY (50000*8)
 
 void lcd_set_dataport(uint8_t data)
 {
@@ -142,7 +144,7 @@ void lcd_send_command(uint8_t ByteToSend)
     // clear out all pins
     //
     //LCM_OUT &= (~LCM_PIN_MASK);
-	LCD_RESET_ALL_PINS();
+	//LCD_RESET_ALL_PINS();
 
     //
     // set High Nibble (HN) -
@@ -158,6 +160,7 @@ void lcd_send_command(uint8_t ByteToSend)
 
     //LCM_OUT &= ~LCM_PIN_RS;
     LCD_RSPIN_SET_LOW();
+    LCD_RWPIN_SET_LOW();
     //
     // we've set up the input voltages to the LCM.
     // Now tell it to read them.
@@ -173,19 +176,13 @@ void lcd_send_command(uint8_t ByteToSend)
     // using a simple assignment
     //
     //LCM_OUT &= (~LCM_PIN_MASK);
-    LCD_RESET_ALL_PINS();
+    //LCD_RESET_ALL_PINS();
     //LCM_OUT |= ((ByteToSend & 0x0F) << 4);
     lcd_set_dataport(ByteToSend & 0x0F);
 
-    /*if (IsData != LCM_SEND_COMMAND)
-    {
-        LCM_OUT |= LCM_PIN_RS;
-    }
-    else
-    {*/
-        //LCM_OUT &= ~LCM_PIN_RS;
-        LCD_RSPIN_SET_LOW();
-    //}
+    //LCM_OUT &= ~LCM_PIN_RS;
+    LCD_RSPIN_SET_LOW();
+    LCD_RWPIN_SET_LOW();
 
     //
     // we've set up the input voltages to the LCM.
@@ -193,6 +190,8 @@ void lcd_send_command(uint8_t ByteToSend)
     //
     //PulseLcm();
     lcd_pulse_en();
+
+    //busy_sleep(LCD_INTERCMD_DELAY);
 }
 
 void lcd_send_data(uint8_t ByteToSend)
@@ -201,7 +200,7 @@ void lcd_send_data(uint8_t ByteToSend)
     // clear out all pins
     //
     //LCM_OUT &= (~LCM_PIN_MASK);
-	LCD_RESET_ALL_PINS();
+	//LCD_RESET_ALL_PINS();
 
     //
     // set High Nibble (HN) -
@@ -216,6 +215,8 @@ void lcd_send_data(uint8_t ByteToSend)
 	lcd_set_dataport(ByteToSend>>4);
 
     LCD_RSPIN_SET_HIGH();
+    LCD_RWPIN_SET_LOW();
+    //busy_sleep(LCD_PULSE_DELAY);
     //
     // we've set up the input voltages to the LCM.
     // Now tell it to read them.
@@ -231,11 +232,13 @@ void lcd_send_data(uint8_t ByteToSend)
     // using a simple assignment
     //
     //LCM_OUT &= (~LCM_PIN_MASK);
-    LCD_RESET_ALL_PINS();
+    //LCD_RESET_ALL_PINS();
     //LCM_OUT |= ((ByteToSend & 0x0F) << 4);
     lcd_set_dataport(ByteToSend & 0x0F);
 
     LCD_RSPIN_SET_HIGH();
+    LCD_RWPIN_SET_LOW();
+    //busy_sleep(LCD_PULSE_DELAY);
 
     //
     // we've set up the input voltages to the LCM.
@@ -243,6 +246,8 @@ void lcd_send_data(uint8_t ByteToSend)
     //
     //PulseLcm();
     lcd_pulse_en();
+
+    //busy_sleep(LCD_INTERCMD_DELAY);
 }
 
 void lcd_clearscr()
@@ -280,11 +285,13 @@ void lcd_prints(char *Text)
     char *c;
     c = Text;
 
-    while ((c != 0) && (*c != 0))
+    while(*c!='\0') lcd_send_data(*c++);
+
+    /*while ((c != 0) && (*c != 0))
     {
         lcd_send_data(*c);
         c++;
-    }
+    }*/
 }
 
 void init_lcd(void)
@@ -307,17 +314,14 @@ void init_lcd(void)
     // active regions. Remember MSPs can power
     // up much faster than the LCM.
     //
-    //__delay_cycles(LCM_INIT_DELAY);
     busy_sleep(LCD_INIT_DELAY);
 
     //
     // initialize the LCM module
     //
     // 1. Set 4-bit input
-    //LCM_OUT |= LCM_PIN_D5;
-    lcd_set_dataport(2);
+    lcd_set_dataport(0x02);
     lcd_pulse_en();
-    //__delay_cycles(LCM_INIT_DELAY);
     busy_sleep(LCD_INIT_DELAY);
 
     //
@@ -338,7 +342,6 @@ void init_lcd(void)
 
     // clear display and wait
     lcd_clearscr();
-    //__delay_cycles(LCM_STARTUP_DELAY);
     busy_sleep(LCD_STARTUP_DELAY);
 }
 
@@ -351,7 +354,6 @@ void main(void)
 	init_systick(SYSTICK_1MS_64MHZ);
 
 	init_lcd();
-	lcd_set_dataport(0x0A);
 
 	lcd_goto(0,0);
 	lcd_prints("ahoj");
@@ -376,24 +378,20 @@ void main(void)
 				LCD_RSPIN_SET_HIGH();
 				LCD_RWPIN_SET_HIGH();
 				LCD_ENPIN_SET_HIGH();
+				//lcd_clearscr();
+				lcd_goto(1,10);
 			}
 			else if (bluetick==1000)
 			{
 				bluetick=0;
 				LED_OFF(LED_BLUE);
-				GPIO_PORTC_DATA_R ^= 0xF0;
-				LCD_RSPIN_SET_LOW();
-				LCD_RWPIN_SET_LOW();
-				LCD_ENPIN_SET_LOW();
 				static int cnt = 0;
-				char str[2];
-				str[0]='0'+cnt;
-				str[1]=0;
-				//lcd_goto(1,8);
-				lcd_clearscr();
+				char str[16];
+				str[0]='0'+(cnt%100/10);
+				str[1]='0'+(cnt%10);
+				str[2]='\0';
 				lcd_prints(str);
 				cnt++;
-				cnt%=10;
 			}
 
 		}
