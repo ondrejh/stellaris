@@ -9,6 +9,20 @@
 #include "utils.h"
 #include "gpios.h"
 
+/**
+ * The function enables port run-time clock
+ * input arg is just the port number
+ * PORTA, PORTB .. PORTF defines can be used
+ * example: enable port F .. enable_port_clock(PORTF)
+ */
+void enable_port_clock(int port)
+{
+	// enable PORT F GPIO peripheral using
+	// run-time clock gating control register 2
+	SYSCTL_RCGCGPIO_R |= (1<<port);
+	// The datasheet says wait after enabling GPIO
+	busy_sleep(10);
+}
 
 /**
  * The function initializes launchpad LEDs and buttons.
@@ -21,9 +35,10 @@ void init_gpios(void)
 {
     // enable PORT F GPIO peripheral using
     // run-time clock gating control register 2
-    SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R5;
+    /*SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R5;
     // The datasheet says wait after enabling GPIO
-    busy_sleep(10);
+    busy_sleep(10);*/
+	enable_port_clock(PORTF);
 
     /* The GPIO for button two is multiplexed with NMI so we
      * have to 'unlock' it before we can use it

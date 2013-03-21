@@ -13,6 +13,13 @@
 #include <inttypes.h>
 #include "lm4f120h5qr.h"
 
+// list of ports
+#define PORTA 0
+#define PORTB 1
+#define PORTC 2
+#define PORTD 3
+#define PORTE 4
+#define PORTF 5
 
 // The LEDs on the Launchpad board are pins GPIO_F1..3
 #define LED_RED (1<<1)
@@ -32,5 +39,7 @@
 // function prototypes
 void init_gpios(void);
 
+// function enabling port runtime clock (port number given by argument)
+void enable_port_clock(int port);
 
 #endif /* GPIOS_H_ */
