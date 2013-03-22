@@ -14,7 +14,9 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 #include "lm4f120h5qr.h"
 #include "gpios.h"
@@ -101,10 +103,12 @@ void uart_init ( void )
 
 #define LCD_RESET_ALL_PINS() {GPIO_PORTA_DATA_R&=~0x1C;GPIO_PORTC_DATA_R&=~0xF0;}
 
-#define LCD_PULSE_DELAY (10*8)
-#define LCD_INTERCMD_DELAY (100*8)
-#define LCD_INIT_DELAY (100000*8)
-#define LCD_STARTUP_DELAY (50000*8)
+#define LCD_PULSE_DELAY (10)
+#define LCD_INTERCMD_DELAY (100)
+#define LCD_INIT_DELAY (100000)
+#define LCD_STARTUP_DELAY (50000)
+
+timer_t tlcd;
 
 void lcd_set_dataport(uint8_t data)
 {
@@ -119,7 +123,8 @@ void lcd_pulse_en(void)
     /*LCM_OUT &= ~LCM_PIN_EN;
     __delay_cycles(LCM_PULSE_DELAY);*/
     LCD_ENPIN_SET_LOW();
-    busy_sleep(LCD_PULSE_DELAY);
+    //busy_sleep(LCD_PULSE_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
 
     //
     // pull EN bit high
@@ -127,7 +132,8 @@ void lcd_pulse_en(void)
     /*LCM_OUT |= LCM_PIN_EN;
     __delay_cycles(LCM_PULSE_DELAY);*/
     LCD_ENPIN_SET_HIGH();
-    busy_sleep(LCD_PULSE_DELAY);
+    //busy_sleep(LCD_PULSE_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
 
     //
     // pull EN bit low again
@@ -135,7 +141,8 @@ void lcd_pulse_en(void)
     /*LCM_OUT &= (~LCM_PIN_EN);
     __delay_cycles(LCM_PULSE_DELAY);*/
     LCD_ENPIN_SET_LOW();
-    busy_sleep(LCD_PULSE_DELAY);
+    //busy_sleep(LCD_PULSE_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
 }
 
 void lcd_send_command(uint8_t ByteToSend)
@@ -156,7 +163,7 @@ void lcd_send_command(uint8_t ByteToSend)
     //
     //LCM_OUT |= (ByteToSend & 0xF0);
     //LCM_OUT |= ((ByteToSend & 0xF0) >> 4);
-	lcd_set_dataport(ByteToSend>>4);
+	lcd_set_dataport((ByteToSend&0xF0)>>4);
 
     //LCM_OUT &= ~LCM_PIN_RS;
     LCD_RSPIN_SET_LOW();
@@ -212,7 +219,7 @@ void lcd_send_data(uint8_t ByteToSend)
     //
     //LCM_OUT |= (ByteToSend & 0xF0);
     //LCM_OUT |= ((ByteToSend & 0xF0) >> 4);
-	lcd_set_dataport(ByteToSend>>4);
+	lcd_set_dataport((ByteToSend&0xF0)>>4);
 
     LCD_RSPIN_SET_HIGH();
     LCD_RWPIN_SET_LOW();
@@ -286,12 +293,6 @@ void lcd_prints(char *Text)
     c = Text;
 
     while(*c!='\0') lcd_send_data(*c++);
-
-    /*while ((c != 0) && (*c != 0))
-    {
-        lcd_send_data(*c);
-        c++;
-    }*/
 }
 
 void init_lcd(void)
@@ -314,7 +315,8 @@ void init_lcd(void)
     // active regions. Remember MSPs can power
     // up much faster than the LCM.
     //
-    busy_sleep(LCD_INIT_DELAY);
+    //busy_sleep(LCD_INIT_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_INIT_DELAY));
 
     //
     // initialize the LCM module
@@ -322,7 +324,8 @@ void init_lcd(void)
     // 1. Set 4-bit input
     lcd_set_dataport(0x02);
     lcd_pulse_en();
-    busy_sleep(LCD_INIT_DELAY);
+    //busy_sleep(LCD_INIT_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_INIT_DELAY));
 
     //
     // set 4-bit input - second time.
@@ -342,9 +345,9 @@ void init_lcd(void)
 
     // clear display and wait
     lcd_clearscr();
-    busy_sleep(LCD_STARTUP_DELAY);
+    //busy_sleep(LCD_STARTUP_DELAY);
+    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_STARTUP_DELAY));
 }
-
 
 /***** MAIN *****/
 
@@ -353,21 +356,30 @@ void main(void)
 	init_gpios();
 	init_systick(SYSTICK_1MS_64MHZ);
 
+	init_timer();
+
 	init_lcd();
 
 	lcd_goto(0,0);
-	lcd_prints("ahoj");
-	lcd_goto(1,1);
-	lcd_prints("vole");
+	lcd_prints(" co je noveho? .");
+	lcd_goto(1,0);
+	lcd_prints("nic,jako obvykle");
+
+	/*int lcd_status = 0;
+	char lcd_buffer[32];
+	memset(lcd_buffer,'X',32);
+	memcpy(lcd_buffer," co je noveho? .nic,jako obvykle");
+	timer_t lcd_timer;
+	start_timer(&lcd_timer,US_2_TICKS(LCD_PULSE_DELAY));*/
 
 	while(1)
 	{
-		if (BUTTON_PRESSED(BUTTON_ONE)) LED_ON(LED_RED)
+		/*if (BUTTON_PRESSED(BUTTON_ONE)) LED_ON(LED_RED)
 		else LED_OFF(LED_RED);
 		if (BUTTON_PRESSED(BUTTON_TWO)) LED_ON(LED_GREEN)
-		else LED_OFF(LED_GREEN);
+		else LED_OFF(LED_GREEN);*/
 
-		if (SYSTICK_COUNT())
+		if (SYSTICK_COUNT()) // 1ms timing
 		{
 			static int bluetick = 0;
 			bluetick++;
@@ -378,22 +390,56 @@ void main(void)
 				LCD_RSPIN_SET_HIGH();
 				LCD_RWPIN_SET_HIGH();
 				LCD_ENPIN_SET_HIGH();
-				//lcd_clearscr();
-				lcd_goto(1,10);
 			}
 			else if (bluetick==1000)
 			{
 				bluetick=0;
 				LED_OFF(LED_BLUE);
-				static int cnt = 0;
-				char str[16];
-				str[0]='0'+(cnt%100/10);
-				str[1]='0'+(cnt%10);
-				str[2]='\0';
-				lcd_prints(str);
-				cnt++;
 			}
-
 		}
+
+		/*if timer_timeout(&lcd_timer)
+		{
+			switch (lcd_status)
+			{
+				case 0: // goto 0,0 (send command 0x80)
+					lcd_set_dataport(0x08);
+					LCD_RSPIN_SET_LOW();
+					LCD_RWPIN_SET_LOW();
+					LCD_ENPIN_SET_LOW();
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 1:
+					LCD_ENPIN_SET_HIGH();
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 2:
+					LCD_ENPIN_SET_LOW();
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 3:
+					lcd_set_dataport(0);
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 4:
+					LCD_ENPIN_SET_HIGH();
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 5:
+					LCD_ENPIN_SET_LOW();
+					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
+					lcd_status++;
+					break;
+				case 6:
+
+			}
+		}*/
+
+
 	}
 }
