@@ -46,6 +46,6 @@ typedef struct
 void init_timer(void);
 void timer_start(timer_t *t, uint32_t timeout);
 bool timer_timeout(timer_t *t);
-void timer_us_busysleep(timer_t *t, uint32_t timeout);
+void timer_busysleep(timer_t *t, uint32_t timeout);
 
 #endif /* UTILS_H_ */

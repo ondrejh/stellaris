@@ -104,195 +104,39 @@ void uart_init ( void )
 #define LCD_RESET_ALL_PINS() {GPIO_PORTA_DATA_R&=~0x1C;GPIO_PORTC_DATA_R&=~0xF0;}
 
 #define LCD_PULSE_DELAY (10)
-#define LCD_INTERCMD_DELAY (100)
-#define LCD_INIT_DELAY (100000)
-#define LCD_STARTUP_DELAY (50000)
+//#define LCD_INTERCMD_DELAY (100)
+#define LCD_INIT_DELAY (500000)
+#define LCD_STARTUP_DELAY (1000000)
 
 timer_t tlcd;
 
 void lcd_set_dataport(uint8_t data)
 {
-	GPIO_PORTC_DATA_R = (GPIO_PORTC_DATA_R & ~0xF0) | (data<<4);
+	GPIO_PORTC_DATA_R = (GPIO_PORTC_DATA_R & ~0xF0) | (data&0xF0);
+	GPIO_PORTB_DATA_R = (GPIO_PORTB_DATA_R & ~0xC0) | ((data&0x0C)<<4);
+	GPIO_PORTD_DATA_R = (GPIO_PORTD_DATA_R & ~0xC0) | ((data&0x03)<<6);
 }
 
-void lcd_pulse_en(void)
+void lcd_pulse_data(uint8_t data, uint8_t cnd)
 {
-    //
-    // pull EN bit low
-    //
-    /*LCM_OUT &= ~LCM_PIN_EN;
-    __delay_cycles(LCM_PULSE_DELAY);*/
-    LCD_ENPIN_SET_LOW();
-    //busy_sleep(LCD_PULSE_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
+	// set data
+	lcd_set_dataport(data);
+	// set control nibbles
+	LCD_RWPIN_SET_LOW(); // write
+	if (cnd==0) LCD_RSPIN_SET_HIGH() else LCD_RSPIN_SET_LOW(); // command or data?
 
-    //
-    // pull EN bit high
-    //
-    /*LCM_OUT |= LCM_PIN_EN;
-    __delay_cycles(LCM_PULSE_DELAY);*/
-    LCD_ENPIN_SET_HIGH();
-    //busy_sleep(LCD_PULSE_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
-
-    //
-    // pull EN bit low again
-    //
-    /*LCM_OUT &= (~LCM_PIN_EN);
-    __delay_cycles(LCM_PULSE_DELAY);*/
-    LCD_ENPIN_SET_LOW();
-    //busy_sleep(LCD_PULSE_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_PULSE_DELAY));
+	LCD_ENPIN_SET_LOW(); // en pin low
+	timer_busysleep(&tlcd, US_2_TICKS(1));
+	LCD_ENPIN_SET_HIGH(); // en pin high
+	timer_busysleep(&tlcd, US_2_TICKS(1));
+	LCD_ENPIN_SET_LOW(); // en pin low
+	//timer_busysleep(&tlcd, US_2_TICKS(100));
 }
 
-void lcd_send_command(uint8_t ByteToSend)
+void lcd_pulse_pause(void)
 {
-    //
-    // clear out all pins
-    //
-    //LCM_OUT &= (~LCM_PIN_MASK);
-	//LCD_RESET_ALL_PINS();
-
-    //
-    // set High Nibble (HN) -
-    // usefulness of the identity mapping
-    // apparent here. We can set the
-    // // DB7 - DB4 just by setting P1.7 - P1.4
-    // DB7 - DB4 just by setting P2.3 - P2.0
-    // using a simple assignment
-    //
-    //LCM_OUT |= (ByteToSend & 0xF0);
-    //LCM_OUT |= ((ByteToSend & 0xF0) >> 4);
-	lcd_set_dataport((ByteToSend&0xF0)>>4);
-
-    //LCM_OUT &= ~LCM_PIN_RS;
-    LCD_RSPIN_SET_LOW();
-    LCD_RWPIN_SET_LOW();
-    //
-    // we've set up the input voltages to the LCM.
-    // Now tell it to read them.
-    //
-    lcd_pulse_en();
-
-    //
-    // set Low Nibble (LN) -
-    // usefulness of the identity mapping
-    // apparent here. We can set the
-    // // DB7 - DB4 just by setting P1.7 - P1.4
-    // DB7 - DB4 just by setting P2.3 - P2.0
-    // using a simple assignment
-    //
-    //LCM_OUT &= (~LCM_PIN_MASK);
-    //LCD_RESET_ALL_PINS();
-    //LCM_OUT |= ((ByteToSend & 0x0F) << 4);
-    lcd_set_dataport(ByteToSend & 0x0F);
-
-    //LCM_OUT &= ~LCM_PIN_RS;
-    LCD_RSPIN_SET_LOW();
-    LCD_RWPIN_SET_LOW();
-
-    //
-    // we've set up the input voltages to the LCM.
-    // Now tell it to read them.
-    //
-    //PulseLcm();
-    lcd_pulse_en();
-
-    //busy_sleep(LCD_INTERCMD_DELAY);
-}
-
-void lcd_send_data(uint8_t ByteToSend)
-{
-    //
-    // clear out all pins
-    //
-    //LCM_OUT &= (~LCM_PIN_MASK);
-	//LCD_RESET_ALL_PINS();
-
-    //
-    // set High Nibble (HN) -
-    // usefulness of the identity mapping
-    // apparent here. We can set the
-    // // DB7 - DB4 just by setting P1.7 - P1.4
-    // DB7 - DB4 just by setting P2.3 - P2.0
-    // using a simple assignment
-    //
-    //LCM_OUT |= (ByteToSend & 0xF0);
-    //LCM_OUT |= ((ByteToSend & 0xF0) >> 4);
-	lcd_set_dataport((ByteToSend&0xF0)>>4);
-
-    LCD_RSPIN_SET_HIGH();
-    LCD_RWPIN_SET_LOW();
-    //busy_sleep(LCD_PULSE_DELAY);
-    //
-    // we've set up the input voltages to the LCM.
-    // Now tell it to read them.
-    //
-    lcd_pulse_en();
-
-    //
-    // set Low Nibble (LN) -
-    // usefulness of the identity mapping
-    // apparent here. We can set the
-    // // DB7 - DB4 just by setting P1.7 - P1.4
-    // DB7 - DB4 just by setting P2.3 - P2.0
-    // using a simple assignment
-    //
-    //LCM_OUT &= (~LCM_PIN_MASK);
-    //LCD_RESET_ALL_PINS();
-    //LCM_OUT |= ((ByteToSend & 0x0F) << 4);
-    lcd_set_dataport(ByteToSend & 0x0F);
-
-    LCD_RSPIN_SET_HIGH();
-    LCD_RWPIN_SET_LOW();
-    //busy_sleep(LCD_PULSE_DELAY);
-
-    //
-    // we've set up the input voltages to the LCM.
-    // Now tell it to read them.
-    //
-    //PulseLcm();
-    lcd_pulse_en();
-
-    //busy_sleep(LCD_INTERCMD_DELAY);
-}
-
-void lcd_clearscr()
-{
-    //
-    // Clear display, return home
-    //
-    lcd_send_command(0x01);
-    lcd_send_command(0x02);
-}
-
-void lcd_goto(char Row, char Col)
-{
-    char address;
-
-    //
-    // construct address from (Row, Col) pair
-    //
-
-    if (Row == 0)
-    {
-        address = 0;
-    }
-    else
-    {
-        address = 0x40;
-    }
-
-    address |= Col;
-    lcd_send_command(0x80 | address);
-}
-
-void lcd_prints(char *Text)
-{
-    char *c;
-    c = Text;
-
-    while(*c!='\0') lcd_send_data(*c++);
+	// wait the rest of 100us
+	timer_busysleep(&tlcd, US_2_TICKS(100));
 }
 
 void init_lcd(void)
@@ -303,81 +147,125 @@ void init_lcd(void)
 	GPIO_PORTC_DIR_R |= 0xF0;
 	GPIO_PORTC_DATA_R &= ~0xF0;
 
+	// data lines (D3 - D2) .. default L
+	enable_port_clock(PORTB);
+	GPIO_PORTB_DEN_R |= 0xC0;
+	GPIO_PORTB_DIR_R |= 0xC0;
+	GPIO_PORTB_DATA_R &= ~0xC0;
+
+	// data lines (D1 - D0) .. default L
+	enable_port_clock(PORTD);
+    GPIO_PORTD_LOCK_R = GPIO_LOCK_KEY; /* Unlock CR  */
+    GPIO_PORTD_CR_R |= 0x80; /* Allow D1 to be changed */
+    GPIO_PORTD_LOCK_R = 0; /* Lock CR again */
+	GPIO_PORTD_DEN_R |= 0xC0;
+	GPIO_PORTD_DIR_R |= 0xC0;
+	GPIO_PORTD_DATA_R &= ~0xC0;
+
 	// RS, RW and EN pin .. default L
 	enable_port_clock(PORTA);
 	GPIO_PORTA_DEN_R |= 0x1C;
 	GPIO_PORTA_DIR_R |= 0x1C;
 	GPIO_PORTA_DATA_R &= ~0x1C;
 
-    lcd_pulse_en();
-    //
-    // wait for the LCM to warm up and reach
-    // active regions. Remember MSPs can power
-    // up much faster than the LCM.
-    //
-    //busy_sleep(LCD_INIT_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_INIT_DELAY));
+	// wait 50ms
+	int waitcnt=0;
+	while (waitcnt<50) {if (SYSTICK_COUNT()) waitcnt++;}
 
-    //
-    // initialize the LCM module
-    //
-    // 1. Set 4-bit input
-    lcd_set_dataport(0x02);
-    lcd_pulse_en();
-    //busy_sleep(LCD_INIT_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_INIT_DELAY));
+	// send command 0x0011NFxx (function set)
+	lcd_pulse_data(0x38,1);
 
-    //
-    // set 4-bit input - second time.
-    // (as reqd by the spec.)
-    //
-    lcd_send_command(0x28);
+	// wait more than 4.5ms
+	timer_busysleep(&tlcd,US_2_TICKS(4500));
 
-    //
-    // 2. Display on, cursor off, blink off
-    //
-    lcd_send_command(0x0C);
+	// send command 0x0011NFxx (function set) again
+	lcd_pulse_data(0x38,1);
 
-    //
-    // 3. Cursor move auto-increment
-    //
-    lcd_send_command(0x06);
+	// wait more than 150us
+	timer_busysleep(&tlcd,US_2_TICKS(150));
 
-    // clear display and wait
-    lcd_clearscr();
-    //busy_sleep(LCD_STARTUP_DELAY);
-    timer_us_busysleep(&tlcd, US_2_TICKS(LCD_STARTUP_DELAY));
+	// send command 0x0011NFxx (function set) again again
+	lcd_pulse_data(0x38,1);
+	lcd_pulse_pause();
+
+	// send command 0x0011NFxx (function set) again again again
+	lcd_pulse_data(0x38,1);
+	lcd_pulse_pause();
+
+	// send command 0x00001DCB (display ON/OFF)
+	lcd_pulse_data(0x0C,1);
+	// wait more than 2ms
+	timer_busysleep(&tlcd,US_2_TICKS(2000));
+
+	// send command 0x00000001 (clear display)
+	lcd_pulse_data(0x01,1);
+	// wait more than 2ms
+	timer_busysleep(&tlcd,US_2_TICKS(2000));
+
+	// send command 0x000001I/DS (entry mode set)
+	lcd_pulse_data(0x06,1);
+	lcd_pulse_pause();
+}
+
+void lcd_clearscr_wait()
+{
+    // Clear display
+    lcd_pulse_data(0x02,1);
+	timer_busysleep(&tlcd,US_2_TICKS(2000));
+}
+
+void lcd_prints_wait(char *Text)
+{
+    char *c;
+    c = Text;
+
+    while(*c!='\0')
+    {
+    	lcd_pulse_data(*c++,0);
+    	lcd_pulse_pause();
+    }
+}
+
+void lcd_goto_wait(char Row, char Col)
+{
+    uint8_t address = 0;
+
+    // construct address from (Row, Col) pair
+    if (Row != 0) address|=0x40;
+    address |= Col;
+
+    lcd_pulse_data(0x80 | address,1);
+    lcd_pulse_pause();
 }
 
 /***** MAIN *****/
 
 void main(void)
 {
+	/*int lcd_status = 0;
+	timer_t lcd_timer;*/
+
 	init_gpios();
 	init_systick(SYSTICK_1MS_64MHZ);
-
 	init_timer();
 
 	init_lcd();
 
-	lcd_goto(0,0);
-	lcd_prints(" co je noveho? .");
-	lcd_goto(1,0);
-	lcd_prints("nic,jako obvykle");
+	//lcd_clearscr_wait();
 
-	/*int lcd_status = 0;
-	char lcd_buffer[32];
-	memset(lcd_buffer,'X',32);
-	memcpy(lcd_buffer," co je noveho? .nic,jako obvykle");
-	timer_t lcd_timer;
-	start_timer(&lcd_timer,US_2_TICKS(LCD_PULSE_DELAY));*/
+	lcd_goto_wait(0,0);
+	lcd_prints_wait(" co je noveho? .\0");
+	lcd_goto_wait(1,0);
+	lcd_prints_wait("nic,jako obvykle\0");
+
+	lcd_goto_wait(0,0);
 
 	while(1)
 	{
-		/*if (BUTTON_PRESSED(BUTTON_ONE)) LED_ON(LED_RED)
+		if (BUTTON_PRESSED(BUTTON_ONE)) LED_ON(LED_RED)
 		else LED_OFF(LED_RED);
 		if (BUTTON_PRESSED(BUTTON_TWO)) LED_ON(LED_GREEN)
-		else LED_OFF(LED_GREEN);*/
+		else LED_OFF(LED_GREEN);
 
 		if (SYSTICK_COUNT()) // 1ms timing
 		{
@@ -393,53 +281,12 @@ void main(void)
 			}
 			else if (bluetick==1000)
 			{
+				static char str[2]={'a',0};
+				lcd_prints_wait(str);
+				str[0]++;
 				bluetick=0;
 				LED_OFF(LED_BLUE);
 			}
 		}
-
-		/*if timer_timeout(&lcd_timer)
-		{
-			switch (lcd_status)
-			{
-				case 0: // goto 0,0 (send command 0x80)
-					lcd_set_dataport(0x08);
-					LCD_RSPIN_SET_LOW();
-					LCD_RWPIN_SET_LOW();
-					LCD_ENPIN_SET_LOW();
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 1:
-					LCD_ENPIN_SET_HIGH();
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 2:
-					LCD_ENPIN_SET_LOW();
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 3:
-					lcd_set_dataport(0);
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 4:
-					LCD_ENPIN_SET_HIGH();
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 5:
-					LCD_ENPIN_SET_LOW();
-					timer_start(&lcd_timer, US_2_TICKS(LCD_PULSE_DELAY));
-					lcd_status++;
-					break;
-				case 6:
-
-			}
-		}*/
-
-
 	}
 }

@@ -64,7 +64,7 @@ bool timer_timeout(timer_t *t)
 	return false;
 }
 
-void timer_us_busysleep(timer_t *t, uint32_t timeout)
+void timer_busysleep(timer_t *t, uint32_t timeout)
 {
 	timer_start(t,timeout);
 	while (!timer_timeout(t)) {};
