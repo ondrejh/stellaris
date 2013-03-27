@@ -21,6 +21,7 @@
 #include "lm4f120h5qr.h"
 #include "gpios.h"
 #include "utils.h"
+#include "lcd.h"
 
 
 /***** UART *****/
@@ -92,173 +93,18 @@ void uart_init ( void )
 }
 
 
-/***** LCD *****/
-
-#define LCD_RSPIN_SET_LOW() {GPIO_PORTA_DATA_R&=~0x04;}
-#define LCD_RSPIN_SET_HIGH() {GPIO_PORTA_DATA_R|=0x04;}
-#define LCD_RWPIN_SET_LOW() {GPIO_PORTA_DATA_R&=~0x08;}
-#define LCD_RWPIN_SET_HIGH() {GPIO_PORTA_DATA_R|=0x08;}
-#define LCD_ENPIN_SET_LOW() {GPIO_PORTA_DATA_R&=~0x10;}
-#define LCD_ENPIN_SET_HIGH() {GPIO_PORTA_DATA_R|=0x10;}
-
-#define LCD_RESET_ALL_PINS() {GPIO_PORTA_DATA_R&=~0x1C;GPIO_PORTC_DATA_R&=~0xF0;}
-
-#define LCD_PULSE_DELAY (10)
-//#define LCD_INTERCMD_DELAY (100)
-#define LCD_INIT_DELAY (500000)
-#define LCD_STARTUP_DELAY (1000000)
-
-timer_t tlcd;
-
-void lcd_set_dataport(uint8_t data)
-{
-	GPIO_PORTC_DATA_R = (GPIO_PORTC_DATA_R & ~0xF0) | (data&0xF0);
-	GPIO_PORTB_DATA_R = (GPIO_PORTB_DATA_R & ~0xC0) | ((data&0x0C)<<4);
-	GPIO_PORTD_DATA_R = (GPIO_PORTD_DATA_R & ~0xC0) | ((data&0x03)<<6);
-}
-
-void lcd_pulse_data(uint8_t data, uint8_t cnd)
-{
-	// set data
-	lcd_set_dataport(data);
-	// set control nibbles
-	LCD_RWPIN_SET_LOW(); // write
-	if (cnd==0) LCD_RSPIN_SET_HIGH() else LCD_RSPIN_SET_LOW(); // command or data?
-
-	LCD_ENPIN_SET_LOW(); // en pin low
-	timer_busysleep(&tlcd, US_2_TICKS(1));
-	LCD_ENPIN_SET_HIGH(); // en pin high
-	timer_busysleep(&tlcd, US_2_TICKS(1));
-	LCD_ENPIN_SET_LOW(); // en pin low
-	//timer_busysleep(&tlcd, US_2_TICKS(100));
-}
-
-void lcd_pulse_pause(void)
-{
-	// wait the rest of 100us
-	timer_busysleep(&tlcd, US_2_TICKS(100));
-}
-
-void init_lcd(void)
-{
-	// data lines (D4 - D7) .. default L
-	enable_port_clock(PORTC);
-	GPIO_PORTC_DEN_R |= 0xF0;
-	GPIO_PORTC_DIR_R |= 0xF0;
-	GPIO_PORTC_DATA_R &= ~0xF0;
-
-	// data lines (D3 - D2) .. default L
-	enable_port_clock(PORTB);
-	GPIO_PORTB_DEN_R |= 0xC0;
-	GPIO_PORTB_DIR_R |= 0xC0;
-	GPIO_PORTB_DATA_R &= ~0xC0;
-
-	// data lines (D1 - D0) .. default L
-	enable_port_clock(PORTD);
-    GPIO_PORTD_LOCK_R = GPIO_LOCK_KEY; /* Unlock CR  */
-    GPIO_PORTD_CR_R |= 0x80; /* Allow D1 to be changed */
-    GPIO_PORTD_LOCK_R = 0; /* Lock CR again */
-	GPIO_PORTD_DEN_R |= 0xC0;
-	GPIO_PORTD_DIR_R |= 0xC0;
-	GPIO_PORTD_DATA_R &= ~0xC0;
-
-	// RS, RW and EN pin .. default L
-	enable_port_clock(PORTA);
-	GPIO_PORTA_DEN_R |= 0x1C;
-	GPIO_PORTA_DIR_R |= 0x1C;
-	GPIO_PORTA_DATA_R &= ~0x1C;
-
-	// wait 50ms
-	int waitcnt=0;
-	while (waitcnt<50) {if (SYSTICK_COUNT()) waitcnt++;}
-
-	// send command 0x0011NFxx (function set)
-	lcd_pulse_data(0x38,1);
-
-	// wait more than 4.5ms
-	timer_busysleep(&tlcd,US_2_TICKS(4500));
-
-	// send command 0x0011NFxx (function set) again
-	lcd_pulse_data(0x38,1);
-
-	// wait more than 150us
-	timer_busysleep(&tlcd,US_2_TICKS(150));
-
-	// send command 0x0011NFxx (function set) again again
-	lcd_pulse_data(0x38,1);
-	lcd_pulse_pause();
-
-	// send command 0x0011NFxx (function set) again again again
-	lcd_pulse_data(0x38,1);
-	lcd_pulse_pause();
-
-	// send command 0x00001DCB (display ON/OFF)
-	lcd_pulse_data(0x0C,1);
-	// wait more than 2ms
-	timer_busysleep(&tlcd,US_2_TICKS(2000));
-
-	// send command 0x00000001 (clear display)
-	lcd_pulse_data(0x01,1);
-	// wait more than 2ms
-	timer_busysleep(&tlcd,US_2_TICKS(2000));
-
-	// send command 0x000001I/DS (entry mode set)
-	lcd_pulse_data(0x06,1);
-	lcd_pulse_pause();
-}
-
-void lcd_clearscr_wait()
-{
-    // Clear display
-    lcd_pulse_data(0x02,1);
-	timer_busysleep(&tlcd,US_2_TICKS(2000));
-}
-
-void lcd_prints_wait(char *Text)
-{
-    char *c;
-    c = Text;
-
-    while(*c!='\0')
-    {
-    	lcd_pulse_data(*c++,0);
-    	lcd_pulse_pause();
-    }
-}
-
-void lcd_goto_wait(char Row, char Col)
-{
-    uint8_t address = 0;
-
-    // construct address from (Row, Col) pair
-    if (Row != 0) address|=0x40;
-    address |= Col;
-
-    lcd_pulse_data(0x80 | address,1);
-    lcd_pulse_pause();
-}
-
 /***** MAIN *****/
 
 void main(void)
 {
-	/*int lcd_status = 0;
-	timer_t lcd_timer;*/
-
 	init_gpios();
 	init_systick(SYSTICK_1MS_64MHZ);
 	init_timer();
 
 	init_lcd();
 
-	//lcd_clearscr_wait();
-
-	lcd_goto_wait(0,0);
-	lcd_prints_wait(" co je noveho? .\0");
-	lcd_goto_wait(1,0);
-	lcd_prints_wait("nic,jako obvykle\0");
-
-	lcd_goto_wait(0,0);
+	lcd_prints_buf(0, "Nashle, a dik za");
+	lcd_prints_buf(16,"vsechny ty ryby!");
 
 	while(1)
 	{
@@ -269,21 +115,17 @@ void main(void)
 
 		if (SYSTICK_COUNT()) // 1ms timing
 		{
+			lcd_refresh();
+
 			static int bluetick = 0;
 			bluetick++;
 
 			if (bluetick==990)
 			{
 				LED_ON(LED_BLUE);
-				LCD_RSPIN_SET_HIGH();
-				LCD_RWPIN_SET_HIGH();
-				LCD_ENPIN_SET_HIGH();
 			}
 			else if (bluetick==1000)
 			{
-				static char str[2]={'a',0};
-				lcd_prints_wait(str);
-				str[0]++;
 				bluetick=0;
 				LED_OFF(LED_BLUE);
 			}
