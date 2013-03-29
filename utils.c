@@ -23,13 +23,6 @@ void busy_sleep(unsigned long delay)
 
 /***** TIMEOUT TIMER (us timing)*****/
 
-// define stolen from "driverlib/sysctl.h"
-#define SYSCTL_PERIPH_TIMER0  0x10100001 // Timer 0
-// defines stolen from "driverlib/rom.h"
-#define ROM_APITABLE ((unsigned long *)0x01000010)
-#define ROM_SYSCTLTABLE ((unsigned long *)(ROM_APITABLE[13]))
-#define ROM_SysCtlPeripheralEnable ((void (*)(unsigned long ulPeripheral))ROM_SYSCTLTABLE[6])
-
 /**
  * Initialization of free running timer used for timeout timers
  */

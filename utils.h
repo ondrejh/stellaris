@@ -13,6 +13,17 @@
 
 #include "lm4f120h5qr.h"
 
+// define stolen from "driverlib/sysctl.h"
+#define SYSCTL_PERIPH_TIMER0  0x10100001 // Timer 0
+#define SYSCTL_PERIPH_UART5   0xf0001805 // UART 5
+#define SYSCTL_PERIPH_UART1   0x10000002 // UART 1
+#define SYSCTL_PERIPH_UART0   0x10000001 // UART 0
+
+// defines stolen from "driverlib/rom.h"
+#define ROM_APITABLE ((unsigned long *)0x01000010)
+#define ROM_SYSCTLTABLE ((unsigned long *)(ROM_APITABLE[13]))
+#define ROM_SysCtlPeripheralEnable ((void (*)(unsigned long ulPeripheral))ROM_SYSCTLTABLE[6])
+
 void busy_sleep(unsigned long delay);
 
 

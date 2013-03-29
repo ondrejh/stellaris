@@ -13,9 +13,12 @@
 
 // initialization
 void init_uart0 ( void );
+void init_uart1 ( void );
 
 // putchar / getchar function
 bool uart0_putchar(char c);
 bool uart0_getchar(char *c);
+bool uart1_putchar(char c);
+bool uart1_getchar(char *c);
 
 #endif /* UART_H_ */

@@ -35,8 +35,10 @@ void main(void)
 	init_systick(SYSTICK_1MS_64MHZ);
 	init_timer();
 	init_uart0();
+	init_uart1();
 
 	init_lcd();
+
 
 	lcd_prints_buf(0, "Sbohem, A dik za");
 	lcd_prints_buf(16,"vsechny ty ryby!");
@@ -48,6 +50,9 @@ void main(void)
 		if (BUTTON_PRESSED(BUTTON_TWO)) LED_ON(LED_GREEN)
 		else LED_OFF(LED_GREEN);
 
+		char c;
+		if (uart1_getchar(&c)) uart1_putchar(c);
+
 		if (SYSTICK_COUNT()) // 1ms timing
 		{
 			lcd_refresh();
@@ -58,6 +63,8 @@ void main(void)
 			if (bluetick==990)
 			{
 				LED_ON(LED_BLUE);
+				/*char c;
+				while (uart1_getchar(&c)) uart1_putchar(c);*/
 			}
 			else if (bluetick==1000)
 			{
