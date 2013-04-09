@@ -6,6 +6,8 @@ Stellaris Launchpad (TI) starter project
 - buttons and leds initialization and usage
 - systick timer example
 - bare 16x2 lcd support (based on https://github.com/ondrejh/msp430_dcf77_clock lcd module)
+- uart0, uart1
+- userspace (no stellaris launchpad) button inputs
 
 ToDo:
 

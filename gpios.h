@@ -27,10 +27,19 @@
 #define LED_GREEN (1<<3)
 
 // The buttons are pins GPIO_F0 and GPIO_F4
-#define BUTTON_ONE (1<<4)
-#define BUTTON_TWO (1<<0)
+#define STELLARIS_BUTTON_ONE (1<<4)
+#define STELLARIS_BUTTON_TWO (1<<0)
 
-#define BUTTON_PRESSED(x) ((GPIO_PORTF_DATA_R&x)==0)
+// Functional (user) buttons (GPIO A5 .. A7)
+#define USER_BUTTON_1 (1<<5)
+#define USER_BUTTON_2 (1<<6)
+#define USER_BUTTON_3 (1<<7)
+
+// Read button macro (function)
+#define STELLARIS_BUTTON_PRESSED(x) ((GPIO_PORTF_DATA_R&x)==0)
+#define USER_BUTTON_PRESSED(x) ((GPIO_PORTA_DATA_R&x)==0)
+
+// Stellaris leds macros (functions)
 #define LED_ON(x) {GPIO_PORTF_DATA_R|=x;}
 #define LED_OFF(x) {GPIO_PORTF_DATA_R&=~x;}
 #define LED_SWAP(x)	{GPIO_PORTF_DATA_R^=x;}

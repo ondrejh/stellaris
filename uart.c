@@ -89,13 +89,13 @@ bool uart0_getchar(char *c)
 
 /**
  * uart 1 initialization function
- * 9600Baud 8N1, fifo enabled
+ * 19200Baud 8N1, fifo enabled
  */
 void init_uart1 ( void )
 {
-    //16000000 / (16 * 9600 ) = 1000000 / 9600 = 104.16667
-    //0.16666... * 64 = 10.666...   ~ 11
-    //use 104 and 11
+    //16000000 / (16 * 19200 ) = 1000000 / 19200 = 52.0833
+    //0.0833... * 64 = 5.333...   ~ 5
+    //use 52 and 5
 
 	SYSCTL_RCGCGPIO_R |= 0x02; // GPIOB
     GPIO_PORTB_AFSEL_R |= 0x03; // PB0, PB1
@@ -110,8 +110,8 @@ void init_uart1 ( void )
     UART1_CTL_R &= ~(UART_CTL_UARTEN | UART_CTL_TXE | UART_CTL_RXE);
 
     UART1_CTL_R &= ~(UART_CTL_HSE); // disable high speed mode
-    UART1_IBRD_R = 104;
-    UART1_FBRD_R = 11;
+    UART1_IBRD_R = 52;
+    UART1_FBRD_R = 5;
     UART1_LCRH_R = UART_LCRH_WLEN_8;// 8bit  | UART_LCRH_FEN; enable fifo
     UART1_FR_R = 0; // clear flags
 

@@ -26,6 +26,26 @@
 #include "lcd.h"
 #include "uart.h"
 
+#define BUTTON_FILTER_TICKS 3
+
+bool btn[3] = {false, false, false};
+
+// filtering user buttons
+void user_button_filter(void)
+{
+	static int btn_filter[3] = {0, 0, 0};
+	int i;
+
+	for (i=0;i<3;i++)
+	{
+		if (((btn[i])&(!USER_BUTTON_PRESSED(USER_BUTTON_1<<i))) || ((!btn[i])&(USER_BUTTON_PRESSED(USER_BUTTON_1<<i))))
+		{
+			btn_filter[i]++;
+			if (btn_filter[i] >= BUTTON_FILTER_TICKS) {btn[i]=!btn[i];}
+		}
+		else btn_filter[i] = 0;
+	}
+}
 
 /***** MAIN *****/
 
@@ -39,16 +59,15 @@ void main(void)
 
 	init_lcd();
 
-
 	lcd_prints_buf(0, "Sbohem, A dik za");
 	lcd_prints_buf(16,"vsechny ty ryby!");
 
 	while(1)
 	{
-		if (BUTTON_PRESSED(BUTTON_ONE)) LED_ON(LED_RED)
-		else LED_OFF(LED_RED);
-		if (BUTTON_PRESSED(BUTTON_TWO)) LED_ON(LED_GREEN)
-		else LED_OFF(LED_GREEN);
+		// test buttons filtering
+		if (btn[0]) {LED_ON(LED_RED);} else {LED_OFF(LED_RED);}
+		if (btn[1]) {LED_ON(LED_GREEN);} else {LED_OFF(LED_GREEN);}
+		if (btn[2]) {LED_ON(LED_BLUE);} else {LED_OFF(LED_BLUE);}
 
 		char c;
 		if (uart1_getchar(&c)) uart1_putchar(c);
@@ -57,19 +76,21 @@ void main(void)
 		{
 			lcd_refresh();
 
+			user_button_filter();
+
 			static int bluetick = 0;
 			bluetick++;
 
 			if (bluetick==990)
 			{
-				LED_ON(LED_BLUE);
+				//LED_ON(LED_BLUE);
 				/*char c;
 				while (uart1_getchar(&c)) uart1_putchar(c);*/
 			}
 			else if (bluetick==1000)
 			{
 				bluetick=0;
-				LED_OFF(LED_BLUE);
+				//LED_OFF(LED_BLUE);
 				// uart 0 echo with 1s delay
 				char c;
 				while (uart0_getchar(&c)) uart0_putchar(c);

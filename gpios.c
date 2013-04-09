@@ -44,21 +44,28 @@ void init_gpios(void)
      * have to 'unlock' it before we can use it
      */
     GPIO_PORTF_LOCK_R = GPIO_LOCK_KEY; /* Unlock CR  */
-    GPIO_PORTF_CR_R |= BUTTON_TWO; /* Allow F0 to be changed */
+    GPIO_PORTF_CR_R |= STELLARIS_BUTTON_TWO; /* Allow F0 to be changed */
     GPIO_PORTF_LOCK_R = 0; /* Lock CR again */
 
     // enable digital for button pins
-    GPIO_PORTF_DEN_R |= BUTTON_ONE | BUTTON_TWO;
+    GPIO_PORTF_DEN_R |= STELLARIS_BUTTON_ONE | STELLARIS_BUTTON_TWO;
 
     // set pins to inputs
-    GPIO_PORTF_DIR_R &= (BUTTON_ONE | BUTTON_TWO);
+    GPIO_PORTF_DIR_R &= ~(STELLARIS_BUTTON_ONE | STELLARIS_BUTTON_TWO);
 
     // Enable weak pullups
-    GPIO_PORTF_DR2R_R |= BUTTON_ONE | BUTTON_TWO;
-    GPIO_PORTF_PUR_R |= BUTTON_ONE | BUTTON_TWO;
+    GPIO_PORTF_DR2R_R |= STELLARIS_BUTTON_ONE | STELLARIS_BUTTON_TWO;
+    GPIO_PORTF_PUR_R |= STELLARIS_BUTTON_ONE | STELLARIS_BUTTON_TWO;
 
     // enable digital for LED PORT F pins
     GPIO_PORTF_DEN_R |= LED_RED | LED_BLUE | LED_GREEN;
     // set LED PORT F pins as outputs (rest are inputs)
     GPIO_PORTF_DIR_R |= LED_RED | LED_BLUE | LED_GREEN;
+
+    // user buttons initialization
+    enable_port_clock(PORTA);
+    GPIO_PORTA_DEN_R  |=  (USER_BUTTON_1 | USER_BUTTON_2 | USER_BUTTON_3);
+    GPIO_PORTA_DIR_R  &= ~(USER_BUTTON_1 | USER_BUTTON_2 | USER_BUTTON_3);
+    GPIO_PORTA_DR2R_R |=  (USER_BUTTON_1 | USER_BUTTON_2 | USER_BUTTON_3);
+    GPIO_PORTA_PUR_R  |=  (USER_BUTTON_1 | USER_BUTTON_2 | USER_BUTTON_3);
 }
